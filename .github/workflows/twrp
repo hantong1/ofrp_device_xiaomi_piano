@@ -1,0 +1,120 @@
+name: TWRP Builder
+
+on:
+  workflow_dispatch:
+    inputs:
+      DEVICE_TREE_URL:
+        description: "Device tree URL"
+        required: true
+        default: "https://github.com/hantong1/ofrp_device_xiaomi_piano"
+
+      DEVICE_TREE_BRANCH:
+        description: "Device tree branch"
+        required: true
+        default: "fox_16.0"
+
+      DEVICE_PATH:
+        description: "Device path"
+        required: true
+        default: "xiaomi/piano"
+
+      DEVICE_NAME:
+        description: "Device name"
+        required: true
+        default: "piano"
+
+      LUNCH_TARGET:
+        description: "Lunch target"
+        required: true
+        default: "piano"
+
+jobs:
+  build:
+    name: Build TWRP
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Clean build space
+        uses: rokibhasansagar/slimhub_actions@main
+
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            repo \
+            git \
+            ccache \
+            zstd \
+            lz4 \
+            lib32stdc++6 \
+            lib32z1 \
+            unzip \
+            p7zip-full
+
+      - name: Configure ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          create-symlink: true
+          key: twrp-${{ github.event.inputs.DEVICE_NAME }}
+
+      - name: Configure git
+        run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email \
+            "${{ github.actor }}@users.noreply.github.com"
+
+      - name: Sync TWRP source
+        run: |
+          repo init \
+            -u https://github.com/nebrassy/platform_manifest_twrp_aosp.git \
+            -b twrp-14 \
+            --depth=1
+
+          repo sync -c \
+            --no-tags \
+            --no-clone-bundle \
+            --force-sync \
+            -j"$(nproc --all)"
+
+      - name: Clone device tree
+        run: |
+          mkdir -p "device/${{ github.event.inputs.DEVICE_PATH }}"
+
+          git clone \
+            --depth=1 \
+            --branch "${{ github.event.inputs.DEVICE_TREE_BRANCH }}" \
+            "${{ github.event.inputs.DEVICE_TREE_URL }}" \
+            "device/${{ github.event.inputs.DEVICE_PATH }}"
+
+      - name: Build TWRP
+        run: |
+          source build/envsetup.sh
+
+          export ALLOW_MISSING_DEPENDENCIES=true
+          export CCACHE_DIR="$GITHUB_WORKSPACE/.ccache"
+          export CCACHE_EXEC="$(command -v ccache)"
+          export CCACHE_MAXSIZE=5G
+          export USE_CCACHE=1
+
+          lunch twrp_${{ github.event.inputs.LUNCH_TARGET }}-eng
+
+          mka adbd recoveryimage
+
+          cp \
+            "out/target/product/${{ github.event.inputs.DEVICE_NAME }}/recovery.img" \
+            "TWRP-${{ github.event.inputs.DEVICE_NAME }}-$(date +%F).img"
+
+      - name: Upload TWRP image
+        uses: actions/upload-artifact@v4
+        with:
+          name: twrp-${{ github.event.inputs.DEVICE_NAME }}
+          path: |
+            TWRP-*.img
+            out/target/product/${{ github.event.inputs.DEVICE_NAME }}/recovery.img
+          if-no-files-found: error
