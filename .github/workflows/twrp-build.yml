@@ -102,6 +102,10 @@ jobs:
         TIP_PID=$!
         repo sync
         kill $TIP_PID && exit 0
+    - name: 屏蔽vibrator示例模块，修复soong SDK版本报错
+      run: |
+        rm -f hardware/interfaces/vibrator/aidl/default/example_java_client/Android.bp
+
 
     - name: 拉取设备树
       run: |
