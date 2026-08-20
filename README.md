@@ -1,9 +1,9 @@
-# OFRP device tree for Xiaomi Pad 8 Pro (piano)
+# OFRP or twrp device tree for Xiaomi Pad 8 Pro (piano)
 
 ## Features
 
 - [X] ADB
-- [X] Decryption
+- [ ] Decryption
 - [X] Display
 - [X] Fasbootd
 - [X] Flashing
