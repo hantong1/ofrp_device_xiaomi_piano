@@ -9,8 +9,6 @@ DEVICE_PATH := device/xiaomi/piano
 # Inherit from device.mk configuration
 $(call inherit-product, $(DEVICE_PATH)/device.mk)
 
-# Inherit any OrangeFox-specific settings
-$(call inherit-product-if-exists, $(DEVICE_PATH)/fox_piano.mk)
 
 ## Device identifier
 PRODUCT_DEVICE := piano
